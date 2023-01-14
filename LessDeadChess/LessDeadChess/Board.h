@@ -1,6 +1,7 @@
 #pragma once
 #include "Defines.h"
 #include <string>
+#include <vector>
 
 #pragma once
 #include "Defines.h"
@@ -88,6 +89,7 @@ extern U64 epPerformers[2][9];  // 144 Byte
 //extern U64 pawnPushes[2][64];  // 1 KByte
 
 std::string BBToString(U64 bb);
+std::vector<Square> serializeBB(U64 bb);
 
 Square bitScanForward(U64 bb);
 int popCount(U64 bb);

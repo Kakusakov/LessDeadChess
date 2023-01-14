@@ -17,7 +17,8 @@
 //	return PlyGenerationData(mMoveStack.length() - InitialBufferIdx);
 //}
 
-bool MoveGen::tryApplyNextMoveAndFinishOtherwise() {
+template<size_t size>
+bool MoveGen<size>::tryApplyNextMoveAndFinishOtherwise() {
 	PlyGenerationData generationData = mHistoryStack.pop();
 	if (generationData.moveCount < 1) throw "something went wrong";
 	// TODO: remove throw after debuging.
@@ -43,7 +44,8 @@ bool MoveGen::tryApplyNextMoveAndFinishOtherwise() {
 	return true;
 }
 
-GeneratedNodeResult MoveGen::generateMoves() {
+template<size_t size>
+GeneratedNodeResult MoveGen<size>::generateMoves() {
 	PlyGenerationData generationData = PlyGenerationData();
 	const size_t initial_leghth = mMoveStack.length();
 	U64 checkingPieces = mPos.board.getAttacksToColoredKing(mPos.turn);
@@ -74,7 +76,8 @@ GeneratedNodeResult MoveGen::generateMoves() {
 	return checkingPieces ? GeneratedNodeResult::Checkmate : GeneratedNodeResult::Stalemate;
 }
 
-void MoveGen::generatePawnMovesToBuffer()
+template<size_t size>
+void MoveGen<size>::generatePawnMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -151,7 +154,8 @@ void MoveGen::generatePawnMovesToBuffer()
 	}
 }
 
-void MoveGen::generateRooklikeMovesToBuffer()
+template<size_t size>
+void MoveGen<size>::generateRooklikeMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -174,7 +178,8 @@ void MoveGen::generateRooklikeMovesToBuffer()
 	}
 }
 
-void MoveGen::generateBishoplikeKingMovesToBuffer()
+template<size_t size>
+void MoveGen<size>::generateBishoplikeMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -197,7 +202,8 @@ void MoveGen::generateBishoplikeKingMovesToBuffer()
 	}
 }
 
-void MoveGen::generateKingMovesToBuffer()
+template<size_t size>
+void MoveGen<size>::generateKingMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -215,7 +221,9 @@ void MoveGen::generateKingMovesToBuffer()
 	}
 }
 
-void MoveGen::generateKnightMovesToBuffer()
+
+template<size_t size>
+void MoveGen<size>::generateKnightMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -237,7 +245,9 @@ void MoveGen::generateKnightMovesToBuffer()
 	}
 }
 
-MoveStorageFlags MoveGen::makeMove(const Move move)
+
+template<size_t size>
+MoveStorageFlags MoveGen<size>::makeMove(const Move move)
 {
 	U64 fromBB = C64(1) << move.getFrom();
 	U64 toBB = C64(1) << move.getTo();
@@ -257,10 +267,10 @@ MoveStorageFlags MoveGen::makeMove(const Move move)
 	else if (flags == MoveFlags::DoublePawn || flags == MoveFlags::EPCapture) {
 		piece = Piece::Pawn;
 	}
-	else if (flags & MoveFlags::PromoFlag) {
+	else if (static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::PromoFlag)) {
 		piece = Piece::Pawn;
 		mPos.board.removeColoredPieces(mPos.turn, Piece::Pawn, fromBB);
-		mPos.board.createColoredPiece(mPos.turn, (Piece)((flags & 0b11) + 1), toBB);
+		mPos.board.createColoredPiece(mPos.turn, (Piece)((static_cast<BYTE>(flags) & 0b11) + 1), toBB);
 	}
 	else if (flags == MoveFlags::KCastle || flags == MoveFlags::QCastle) {
 		piece = Piece::King;  // Important, castling is king's move.
@@ -268,11 +278,11 @@ MoveStorageFlags MoveGen::makeMove(const Move move)
 	}
 	else throw "Missing case";  // Maybe remove after debugging.
 
-	if (!(flags & MoveFlags::PromoFlag)) {
+	if (!(static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::PromoFlag))) {
 		mPos.board.updateColoredPiece(mPos.turn, piece, fromBB | toBB);
 	}
 
-	if ((flags & MoveFlags::CaptureFlag)) {
+	if ((static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::CaptureFlag))) {
 		U64 atkBB;
 		if (flags != MoveFlags::EPCapture) atkBB = toBB;
 		else atkBB = epAttackTargets[mPos.turn][mPos.enPassant];
@@ -284,20 +294,23 @@ MoveStorageFlags MoveGen::makeMove(const Move move)
 		else captured = Piece::Queen;
 
 		mCaptureStack.push(captured);
-		storageFlags = (MoveStorageFlags)(storageFlags | MoveStorageFlags::CaptureFlag);
+		storageFlags = (MoveStorageFlags)(
+			static_cast<BYTE>(storageFlags) | static_cast<BYTE>(MoveStorageFlags::CaptureFlag)
+		);
 		mPos.board.removeColoredPieces(opponent, captured, atkBB);
 	}
 
-	if ((flags & MoveFlags::CaptureFlag) || (piece == Piece::Pawn)) {
+	if ((static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::CaptureFlag)) 
+		|| (piece == Piece::Pawn)) {
 		mHMClockStack.push(mPos.hmClock);
-		storageFlags = (MoveStorageFlags)(storageFlags | MoveStorageFlags::HMClockFlag);
+		storageFlags = (MoveStorageFlags)(static_cast<BYTE>(storageFlags) | static_cast<BYTE>(MoveStorageFlags::HMClockFlag));
 		mPos.hmClock = 0;
 	}
 	else ++mPos.hmClock;
 
 	if (mPos.enPassant != EnPassant::None) {
 		mEPStack.push(mPos.enPassant);
-		storageFlags = (MoveStorageFlags)(storageFlags | MoveStorageFlags::EnPassantFlag);
+		storageFlags = (MoveStorageFlags)(static_cast<BYTE>(storageFlags) | static_cast<BYTE>(MoveStorageFlags::EnPassantFlag));
 	}
 	mPos.enPassant = flags == MoveFlags::DoublePawn ? (EnPassant)(move.getFrom() & 0x7) : EnPassant::None;
 
@@ -307,7 +320,7 @@ MoveStorageFlags MoveGen::makeMove(const Move move)
 	);
 	if ((piece == Piece::King) && (mPos.cRights & kingMoveBrokenCRights)) {
 		mCRightsStack.push(mPos.cRights);
-		storageFlags = (MoveStorageFlags)(storageFlags | MoveStorageFlags::CRightsFlag);
+		storageFlags = (MoveStorageFlags)(static_cast<BYTE>(storageFlags) | static_cast<BYTE>(MoveStorageFlags::CRightsFlag));
 		mPos.cRights = (CRightsFlags)(mPos.cRights & ~kingMoveBrokenCRights);
 	}
 
@@ -316,7 +329,8 @@ MoveStorageFlags MoveGen::makeMove(const Move move)
 	return storageFlags;
 }
 
-void MoveGen::unmakeMove(const Move move, const MoveStorageFlags storageFlags)
+template<size_t size>
+void MoveGen<size>::unmakeMove(const Move move, const MoveStorageFlags storageFlags)
 {
 	U64 fromBB = C64(1) << move.getFrom();
 	U64 toBB = C64(1) << move.getTo();
@@ -325,9 +339,9 @@ void MoveGen::unmakeMove(const Move move, const MoveStorageFlags storageFlags)
 	mPos.turn = (Color)((mPos.turn + 1) & 1);
 	Piece piece;
 
-	if (storageFlags & MoveStorageFlags::CRightsFlag) mPos.cRights = mCRightsStack.pop();
-	if (storageFlags & MoveStorageFlags::EnPassantFlag) mPos.enPassant = mEPStack.pop();
-	if (storageFlags & MoveStorageFlags::HMClockFlag) mPos.hmClock = mHMClockStack.pop();
+	if (static_cast<BYTE>(storageFlags) & static_cast<BYTE>(MoveStorageFlags::CRightsFlag)) mPos.cRights = mCRightsStack.pop();
+	if (static_cast<BYTE>(storageFlags) & static_cast<BYTE>(MoveStorageFlags::EnPassantFlag)) mPos.enPassant = mEPStack.pop();
+	if (static_cast<BYTE>(storageFlags) & static_cast<BYTE>(MoveStorageFlags::HMClockFlag)) mPos.hmClock = mHMClockStack.pop();
 
 	if (flags == MoveFlags::Quiet || flags == MoveFlags::Capture) {
 		if (mPos.board.getColoredPieces(mPos.turn, Piece::Pawn) & toBB) piece = Piece::Pawn;
@@ -340,9 +354,9 @@ void MoveGen::unmakeMove(const Move move, const MoveStorageFlags storageFlags)
 	else if (flags == MoveFlags::DoublePawn || flags == MoveFlags::EPCapture) {
 		piece = Piece::Pawn;
 	}
-	else if (flags & MoveFlags::PromoFlag) {
+	else if (static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::PromoFlag)) {
 		piece = Piece::Pawn;
-		mPos.board.removeColoredPieces(mPos.turn, (Piece)((flags & 0b11) + 1), toBB);
+		mPos.board.removeColoredPieces(mPos.turn, (Piece)((static_cast<BYTE>(flags) & 0b11) + 1), toBB);
 		mPos.board.createColoredPiece(mPos.turn, Piece::Pawn, fromBB);
 	}
 	else if (flags == MoveFlags::KCastle || flags == MoveFlags::QCastle) {
@@ -351,14 +365,69 @@ void MoveGen::unmakeMove(const Move move, const MoveStorageFlags storageFlags)
 	}
 	else throw "Missing case";  // Maybe remove after debugging.
 
-	if (!(flags & MoveFlags::PromoFlag)) {
+	if (!(static_cast<BYTE>(flags) & static_cast<BYTE>(MoveFlags::PromoFlag))) {
 		mPos.board.updateColoredPiece(mPos.turn, piece, fromBB | toBB);
 	}
 
-	if (storageFlags & MoveStorageFlags::CaptureFlag) {
+	if (static_cast<BYTE>(storageFlags) & static_cast<BYTE>(MoveStorageFlags::CaptureFlag)) {
 		U64 atkBB;
 		if (flags != MoveFlags::EPCapture) atkBB = toBB;
 		else atkBB = epAttackTargets[mPos.turn][mPos.enPassant];
 		mPos.board.createColoredPiece(opponent, mCaptureStack.pop(), atkBB);
 	}
+}
+
+std::string Position::toDebugAsciiView() {
+	std::string ret = "Positon[turn=" + std::to_string(turn)
+		+ ", cRights=" + std::to_string(cRights)
+		+ ", enPassant=" + std::to_string(enPassant)
+		+ ", hmClock=" + std::to_string(hmClock)
+		+ "]\n{\n";
+	auto whites = serializeBB(board.getBB(Board::PieceBB::White));
+	auto pawns = serializeBB(board.getBB(Board::PieceBB::Pawn));
+	auto knights = serializeBB(board.getBB(Board::PieceBB::Knight));
+	auto bishops = serializeBB(board.getBB(Board::PieceBB::Bishop));
+	auto rooks = serializeBB(board.getBB(Board::PieceBB::Rook));
+	auto queens = serializeBB(board.getBB(Board::PieceBB::Queen));
+	auto kings = serializeBB(board.getBB(Board::PieceBB::King));
+	std::string viev = "";
+	std::string row;
+	for (int y = 0; y < 8; ++y) {
+		row = "";
+		for (int x = 0; x < 8; ++x) {
+			Square sq = (Square)(y * 8 + x);
+			bool found = true;
+			if (std::find(pawns.begin(), pawns.end(), sq) != pawns.end()) {
+				ret += "P";
+			}
+			else if (std::find(knights.begin(), knights.end(), sq) != knights.end()) {
+				ret += "N";
+			}
+			else if (std::find(bishops.begin(), bishops.end(), sq) != bishops.end()) {
+				ret += "B";
+			}
+			else if (std::find(rooks.begin(), rooks.end(), sq) != rooks.end()) {
+				ret += "R";
+			}
+			else if (std::find(queens.begin(), queens.end(), sq) != queens.end()) {
+				ret += "Q";
+			}
+			else if (std::find(kings.begin(), kings.end(), sq) != kings.end()) {
+				ret += "K";
+			}
+			else {
+				found = false;
+				ret += "__";
+			}
+
+			if (found) {
+				if (std::find(whites.begin(), whites.end(), sq) != whites.end()) ret += "W";
+				else ret += "B";
+			}
+			ret += "  ";
+		}
+		viev = row + "\n" + viev;
+	}
+	ret += viev + "\n}";
+	return ret;
 }

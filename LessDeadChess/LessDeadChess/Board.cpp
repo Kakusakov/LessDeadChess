@@ -390,3 +390,12 @@ std::string BBToString(U64 bb) {
 	}
 	return ret;
 }
+
+std::vector<Square> serializeBB(U64 bb) {
+	auto ret = std::vector<Square>(popCount(bb));
+	while (bb) {
+		ret.push_back(bitScanForward(bb));
+		bb &= bb - 1;
+	}
+	return ret;
+}

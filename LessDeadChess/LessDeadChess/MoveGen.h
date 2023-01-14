@@ -3,17 +3,10 @@
 #include "Board.h"
 #include "FastStack.h"
 #include <stdexcept>
-
-// TODO: use max function to optimize size of buffers
-#define MAX_PLY 256
-#define MOVE_BUF_CAPACITY MAX_PLY * 64
-#define CAPTURE_BUF_CAPACITY 32  // max possible
-#define CRIGHTS_BUF_CAPACITY 4  // max possible
-#define EP_BUF_CAPACITY 16  // max possible
-#define HM_CLOCK_BUF_CAPACITY MAX_PLY
+#include <algorithm>
 
 
-enum MoveFlags : BYTE {
+enum class MoveFlags : BYTE {
 	SpecFlag0 = 0b1,
 	SpecFlag1 = 0b10,
 	CaptureFlag = 0b100,
@@ -35,7 +28,7 @@ enum MoveFlags : BYTE {
 	QueenPromoCapture = 15,
 };
 
-enum MoveStorageFlags : BYTE {
+enum class MoveStorageFlags : BYTE {
 	None = 0,
 	CaptureFlag = 0b1,
 	EnPassantFlag = 0b10,
@@ -43,7 +36,7 @@ enum MoveStorageFlags : BYTE {
 	HMClockFlag = 0b1000
 };
 
-enum MoveGenerationStage : BYTE {
+enum class MoveGenerationStage : BYTE {
 	PawnStage,
 	RookLikeStage,
 	BishopLikeStage,
@@ -52,7 +45,7 @@ enum MoveGenerationStage : BYTE {
 	FinalStage
 };
 
-enum GeneratedNodeResult {
+enum class GeneratedNodeResult {
 	None,
 	Checkmate,
 	Stalemate,
@@ -64,7 +57,7 @@ private:
 	WORD mData;
 public:
 	Move(Square from, Square to, MoveFlags flags) {
-		mData = ((flags & 0xf) << 12) | ((from & 0x3f) << 6) | (to & 0x3f);
+		mData = (((BYTE)flags & 0xf) << 12) | ((from & 0x3f) << 6) | (to & 0x3f);
 	}
 	inline Square getTo() const { return (Square)(mData & 0x3f); }
 	inline Square getFrom() const { return (Square)((mData >> 6) & 0x3f); }
@@ -93,26 +86,24 @@ public:
 	CRightsFlags cRights;
 	EnPassant enPassant;
 	BYTE hmClock;
-	// TODO: may want to separate move generation into stages and generate those move in
-	// separate functions. 
-	// The functions should probably be private since it may be good to abstract the
-	// exact workings of stages away from the end user.
+	std::string toDebugAsciiView();
+	// TODO: generate positon from FEN.
 };
 
+template<size_t size>
 class MoveGen {
 private:
 	Position mPos;
-	FastStack<PlyGenerationData, MAX_PLY> mHistoryStack;
-	FastStack<Move, MOVE_BUF_CAPACITY> mMoveStack;
-	FastStack<Piece, CAPTURE_BUF_CAPACITY> mCaptureStack;
-	FastStack<BYTE, HM_CLOCK_BUF_CAPACITY> mHMClockStack;
-	FastStack<EnPassant, EP_BUF_CAPACITY> mEPStack;
-	FastStack<CRightsFlags, CRIGHTS_BUF_CAPACITY> mCRightsStack;
+	FastStack<PlyGenerationData, size> mHistoryStack;
+	FastStack<Move, size * 64> mMoveStack;
+	FastStack<Piece, std::min(size, (size_t)32)> mCaptureStack;
+	FastStack<BYTE, std::min(size, (size_t)120)> mHMClockStack;
+	FastStack<EnPassant, std::min(size, (size_t)16)> mEPStack;
+	FastStack<CRightsFlags, std::min(size, (size_t)4)> mCRightsStack;
 
-	//PlyGenerationData GenerateMovesFromBoard();
 	void generatePawnMovesToBuffer();
 	void generateRooklikeMovesToBuffer();
-	void generateBishoplikeKingMovesToBuffer();
+	void generateBishoplikeMovesToBuffer();
 	void generateKnightMovesToBuffer();
 	void generateKingMovesToBuffer();
 
@@ -127,7 +118,7 @@ private:
 			generateRooklikeMovesToBuffer();
 			break;
 		case MoveGenerationStage::BishopLikeStage:
-			generateBishoplikeKingMovesToBuffer();
+			generateBishoplikeMovesToBuffer();
 			break;
 		case MoveGenerationStage::KnightStage:
 			generateKnightMovesToBuffer();
@@ -138,7 +129,7 @@ private:
 		default:
 			throw "invalid stage";
 		}
-		stage = (MoveGenerationStage)(stage + 1);
+		stage = (MoveGenerationStage)((BYTE)stage + 1);
 		return true;
 	}
 

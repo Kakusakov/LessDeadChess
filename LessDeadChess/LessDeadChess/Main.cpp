@@ -52,5 +52,12 @@ int main() {
 	std::cout << "size of Position = " << sizeof(Position) << std::endl;
 	std::cout << "size of MoveFlags = " << sizeof(MoveFlags) << std::endl;
 	std::cout << "size of Move = " << sizeof(Move) << std::endl;
+	std::cout << "size of MoveGen<1> = " << sizeof(MoveGen<1>) << std::endl;
+	std::cout << "size of MoveGen<2> = " << sizeof(MoveGen<2>) << std::endl;
+	std::cout << "size of MoveGen<3> = " << sizeof(MoveGen<3>) << std::endl;
+	std::cout << "size of MoveGen<5> = " << sizeof(MoveGen<5>) << std::endl;
+	std::cout << "size of MoveGen<10> = " << sizeof(MoveGen<10>) << std::endl;
+	std::cout << "size of MoveGen<20> = " << sizeof(MoveGen<20>) << std::endl;
+	std::cout << "size of MoveGen<50> = " << sizeof(MoveGen<50>) << std::endl;
 	return 0;
 }
