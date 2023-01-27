@@ -3,9 +3,6 @@
 #include <string>
 #include <vector>
 
-#pragma once
-#include "Defines.h"
-
 enum Piece : BYTE {
 	Pawn,
 	Knight,
@@ -71,6 +68,11 @@ const U64 rank7 = C64(0xff000000000000);
 const U64 rank8 = C64(0xff00000000000000);
 const U64 bFile = C64(0x0202020202020202);
 
+const U64 wQCastleObstructions = C64(0xE);
+const U64 wKCastleObstructions = C64(0x60);
+const U64 bQCastleObstructions = C64(0xE00000000000000);
+const U64 bKCastleObstructions = C64(0x6000000000000000);
+
 extern U64 fillUpAttacks[8][64];  // 4 KByte
 extern U64 aFileAttacks[8][64];  // 4 KByte
 
@@ -86,6 +88,11 @@ extern U64 epMoveTargets[2][8];  // 128 Byte
 extern U64 epAttackTargets[2][8];  // 128 Byte
 
 extern U64 epPerformers[2][9];  // 144 Byte
+
+extern U64 kCastlingRookUpdate[2];  // 16 Byte
+extern U64 qCastlingRookUpdate[2];  // 16 Byte
+
+
 //extern U64 pawnPushes[2][64];  // 1 KByte
 
 std::string BBToString(U64 bb);
@@ -93,6 +100,9 @@ std::vector<Square> serializeBB(U64 bb);
 
 Square bitScanForward(U64 bb);
 int popCount(U64 bb);
+
+U64 flipVertical(U64 x);
+U64 mirrorHorizontal(U64 x);
 
 U64 rankMask(Square sq);
 U64 fileMask(Square sq);
@@ -137,7 +147,7 @@ void initalizeBoardClass();
 class Board
 {
 private:
-	U64 mPieceBB[8];
+	U64 mPieceBB[8] = { 0 };
 public:
 	enum PieceBB {
 		White,
@@ -157,8 +167,8 @@ public:
 	inline U64 getColoredKing(Color color) const { return mPieceBB[PieceBB::King] & mPieceBB[color]; }
 	inline U64 getWhitePawns() const { return mPieceBB[PieceBB::Pawn] & mPieceBB[PieceBB::White]; }
 	inline U64 getBlackPawns() const { return mPieceBB[PieceBB::Pawn] & mPieceBB[PieceBB::Black]; }
-	inline U64 getBishopLikeSliders() const { return mPieceBB[PieceBB::Queen] & mPieceBB[PieceBB::Bishop]; }
-	inline U64 getRookLikeSliders() const { return mPieceBB[PieceBB::Queen] & mPieceBB[PieceBB::Rook]; }
+	inline U64 getBishopLikeSliders() const { return mPieceBB[PieceBB::Queen] | mPieceBB[PieceBB::Bishop]; }
+	inline U64 getRookLikeSliders() const { return mPieceBB[PieceBB::Queen] | mPieceBB[PieceBB::Rook]; }
 	inline U64 getOccupance() const { return mPieceBB[PieceBB::White] | mPieceBB[PieceBB::Black]; }
 	inline U64 getEmpty() const { return ~getOccupance(); }
 	inline U64 getAttacksTo(Square sq) const {
@@ -170,19 +180,23 @@ public:
 			| (bishopAttacks(occ, sq) & (mPieceBB[PieceBB::Queen] | mPieceBB[PieceBB::Bishop]))
 			| (rookAttacks(occ, sq) & (mPieceBB[PieceBB::Queen] | mPieceBB[PieceBB::Rook]));
 	}
-	inline U64 getAttacksToColoredKing(Color color) {
-		return getAttacksTo(bitScanForward(getColoredKing(color)));
+	inline U64 getAttacksToColoredKing(Color color) const {
+		return getAttacksTo(bitScanForward(getColoredKing(color))) & getColor((Color)((color + 1) & 1));
 	}
 	inline void removeColoredPieces(Color color, Piece piece, U64 remove) {
 		mPieceBB[piece + 2] &= ~remove;
 		mPieceBB[color] &= ~remove;
 	}
-	inline void createColoredPiece(Color color, Piece piece, U64 create) {
+	inline void createColoredPieces(Color color, Piece piece, U64 create) {
 		mPieceBB[piece + 2] |= create;
 		mPieceBB[color] |= create;
 	}
-	inline void updateColoredPiece(Color color, Piece piece, U64 update) {
+	inline void updateColoredPieces(Color color, Piece piece, U64 update) {
 		mPieceBB[piece + 2] ^= update;
 		mPieceBB[color] ^= update;
 	}
+	bool isWhiteKingsideCastleObstructed() const;
+	bool isBlackKingsideCastleObstructed() const;
+	bool isWhiteQueensideCastleObstructed() const;
+	bool isBlackQueensideCastleObstructed() const;
 };

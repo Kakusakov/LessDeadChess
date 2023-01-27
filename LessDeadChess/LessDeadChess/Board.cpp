@@ -20,6 +20,8 @@ U64 epAttackTargets[2][8];  // 128 Byte
 
 U64 epPerformers[2][9];  // 144 Byte
 
+U64 kCastlingRookUpdate[2] = { C64(0xA0), C64(0xA000000000000000) };  // 16 Byte
+U64 qCastlingRookUpdate[2] = { C64(0x9), C64(0x900000000000000) };  // 16 Byte
 
 const int index64[64] = {
 	0, 47,  1, 56, 48, 27,  2, 60,
@@ -43,10 +45,11 @@ void initializeKGLookups() {
 			U64 firstRankAttacks = eastAttacks(rooks, empty) | westAttacks(rooks, empty);
 
 			fillUpAttacks[sq][occ6bit] = nortOccluded(firstRankAttacks, universeSet);
-			aFileAttacks[sq][occ6bit] = eastOccluded(
+			/*aFileAttacks[sq][occ6bit] = eastOccluded(
 				((firstRankAttacks * diaA1H8) >> 7) & aFile, 
 				universeSet
-			);
+			);*/
+			aFileAttacks[7 - sq][occ6bit] = ((firstRankAttacks * diaA1H8) >> 7) & aFile;
 #if defined DEBUG_VERBOSE
 			std::cout << "fillUpAttacks[" +
 				std::to_string(sq) + "][" +
@@ -139,7 +142,7 @@ void inititalizeEpAttackTargets() {
 		std::cout << "epAttackTargets[" +
 			std::to_string(Color::Black) + "][" +
 			std::to_string(epCol) + "] = {\n" +
-			BBToString(epAttackTargets[Color::White][epCol]) + "}\n" << std::endl;
+			BBToString(epAttackTargets[Color::Black][epCol]) + "}\n" << std::endl;
 #endif
 	}
 }
@@ -152,14 +155,14 @@ void inititalizeEpMoveTargets() {
 		epMoveTargets[Color::White][epCol] = fileMask((Square)epCol) & rank6;
 		epMoveTargets[Color::Black][epCol] = fileMask((Square)epCol) & rank3;
 #if defined DEBUG_VERBOSE
-	std::cout << "epTargets[" +
+	std::cout << "epMoveTargets[" +
 		std::to_string(Color::White) + "][" +
 		std::to_string(epCol) + "] = {\n" +
-		BBToString(epTargets[Color::White][epCol]) + "}\n" << std::endl;
-	std::cout << "epTargets[" +
+		BBToString(epMoveTargets[Color::White][epCol]) + "}\n" << std::endl;
+	std::cout << "epMoveTargets[" +
 		std::to_string(Color::Black) + "][" +
 		std::to_string(epCol) + "] = {\n" +
-		BBToString(epTargets[Color::White][epCol]) + "}\n" << std::endl;
+		BBToString(epMoveTargets[Color::Black][epCol]) + "}\n" << std::endl;
 #endif
 	}
 }
@@ -181,7 +184,7 @@ void inititalizeEpPerformers() {
 		std::cout << "epPerformers[" +
 			std::to_string(Color::Black) + "][" +
 			std::to_string(epCol) + "] = {\n" +
-			BBToString(epPerformers[Color::White][epCol]) + "}\n" << std::endl;
+			BBToString(epPerformers[Color::Black][epCol]) + "}\n" << std::endl;
 #endif
 	}
 	epPerformers[Color::White][EnPassant::None] = emptySet;
@@ -243,9 +246,30 @@ int popCount(U64 bb) {
 	int count = 0;
 	while (bb) {
 		count++;
-		bb &= bb - 1;
+		bb &= bb - C64(1);
 	}
 	return count;
+}
+
+U64 flipVertical(U64 x) {
+	return  ((x << 56)) |
+		((x << 40) & C64(0x00ff000000000000)) |
+		((x << 24) & C64(0x0000ff0000000000)) |
+		((x << 8) & C64(0x000000ff00000000)) |
+		((x >> 8) & C64(0x00000000ff000000)) |
+		((x >> 24) & C64(0x0000000000ff0000)) |
+		((x >> 40) & C64(0x000000000000ff00)) |
+		((x >> 56));
+}
+
+U64 mirrorHorizontal(U64 x) {
+	const U64 k1 = C64(0x5555555555555555);
+	const U64 k2 = C64(0x3333333333333333);
+	const U64 k4 = C64(0x0f0f0f0f0f0f0f0f);
+	x = ((x >> 1) & k1) | ((x & k1) << 1);
+	x = ((x >> 2) & k2) | ((x & k2) << 2);
+	x = ((x >> 4) & k4) | ((x & k4) << 4);
+	return x;
 }
 
 U64 rankMask(Square sq) {
@@ -383,8 +407,8 @@ std::string BBToString(U64 bb) {
 	for (int y = 0; y < 8; ++y) {
 		row = "";
 		for (int x = 0; x < 8; ++x, bb >>= 1) {
-			if (bb & 1) row += "_ ";
-			else row += "1 ";
+			if (bb & 1) row += "1 ";
+			else row += "_ ";
 		}
 		ret = row + "\n" + ret;
 	}
@@ -392,10 +416,37 @@ std::string BBToString(U64 bb) {
 }
 
 std::vector<Square> serializeBB(U64 bb) {
-	auto ret = std::vector<Square>(popCount(bb));
+	auto ret = std::vector<Square>();
+	ret.reserve(popCount(bb));
 	while (bb) {
 		ret.push_back(bitScanForward(bb));
-		bb &= bb - 1;
+		bb &= bb - C64(1);
 	}
 	return ret;
+}
+
+bool Board::isWhiteKingsideCastleObstructed() const {
+	return getOccupance() & wKCastleObstructions
+		|| getAttacksTo((Square)5) & mPieceBB[PieceBB::Black]
+		|| getAttacksTo((Square)6) & mPieceBB[PieceBB::Black];
+}
+
+bool Board::isBlackKingsideCastleObstructed() const {
+	return getOccupance() & bKCastleObstructions
+		|| getAttacksTo((Square)62) & mPieceBB[PieceBB::White]
+		|| getAttacksTo((Square)61) & mPieceBB[PieceBB::White];
+}
+
+bool Board::isWhiteQueensideCastleObstructed() const {
+	return getOccupance() & wQCastleObstructions
+		|| getAttacksTo((Square)1) & mPieceBB[PieceBB::Black]
+		|| getAttacksTo((Square)2) & mPieceBB[PieceBB::Black]
+		|| getAttacksTo((Square)3) & mPieceBB[PieceBB::Black];
+}
+
+bool Board::isBlackQueensideCastleObstructed() const {
+	return getOccupance() & bQCastleObstructions
+		|| getAttacksTo((Square)59) & mPieceBB[PieceBB::White]
+		|| getAttacksTo((Square)58) & mPieceBB[PieceBB::White]
+		|| getAttacksTo((Square)57) & mPieceBB[PieceBB::White];
 }

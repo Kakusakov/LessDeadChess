@@ -131,12 +131,19 @@
     <ClInclude Include="Defines.h" />
     <ClInclude Include="FastStack.h" />
     <ClInclude Include="MoveGen.h" />
+    <ClInclude Include="MoveStack.h" />
+    <ClInclude Include="Perft.h" />
+    <ClInclude Include="Position.h" />
+    <ClInclude Include="Search.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="FastStack.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MoveGen.cpp" />
+    <ClCompile Include="MoveStack.cpp" />
+    <ClCompile Include="Perft.cpp" />
+    <ClCompile Include="Position.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -6,8 +6,9 @@ typedef unsigned short WORD;
 #define C64(constantU64) constantU64##ULL
 #define MIN(a, b) a > b ? b : a
 
-//#define DEBUG
+#define DEBUG
 //#define DEBUG_VERBOSE
+//#define LOG_TO_FILE
 
 #if defined DEBUG_VERBOSE and !defined DEBUG
 #define DEBUG
@@ -15,4 +16,8 @@ typedef unsigned short WORD;
 
 #if defined DEBUG_VERBOSE and !defined LOG_TO_FILE
 #error Please use logging if you want a verbose debug.
+#endif
+
+#if defined DEBUG
+#include <iostream>
 #endif
