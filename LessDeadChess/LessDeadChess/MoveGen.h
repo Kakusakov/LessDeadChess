@@ -7,10 +7,10 @@
 
 
 enum class MoveFlags : BYTE {
-	SpecFlag0 = 0b1,
-	SpecFlag1 = 0b10,
-	CaptureFlag = 0b100,
-	PromoFlag = 0b1000,
+	Speñ0Flag = 1 << 0,
+	Spec1Flag = 1 << 1,
+	CaptureFlag = 1 << 2,
+	PromoFlag = 1 << 3,
 
 	Quiet = 0,
 	DoublePawn = 1,
@@ -27,6 +27,9 @@ enum class MoveFlags : BYTE {
 	RookPromoCapture = 14,
 	QueenPromoCapture = 15,
 };
+inline MoveFlags operator~(MoveFlags a) {
+	return static_cast<MoveFlags>(~static_cast<BYTE>(a));
+}
 inline MoveFlags operator&(MoveFlags a, MoveFlags b) {
 	return static_cast<MoveFlags>(static_cast<BYTE>(a) & static_cast<BYTE>(b));
 }
@@ -36,14 +39,29 @@ inline MoveFlags operator|(MoveFlags a, MoveFlags b) {
 inline MoveFlags operator^(MoveFlags a, MoveFlags b) {
 	return static_cast<MoveFlags>(static_cast<BYTE>(a) ^ static_cast<BYTE>(b));
 }
+inline MoveFlags& operator&= (MoveFlags& a, MoveFlags b) {
+	a = a & b;
+	return a;
+}
+inline MoveFlags& operator|= (MoveFlags& a, MoveFlags b) {
+	a = a | b;
+	return a;
+}
+inline MoveFlags& operator^= (MoveFlags& a, MoveFlags b) {
+	a = a ^ b;
+	return a;
+}
 
 enum class StorageFlags : BYTE {
 	None = 0,
-	CaptureFlag = 0b1,
-	EnPassantFlag = 0b10,
-	CRightsFlag = 0b100,
-	HMClockFlag = 0b1000
+	CaptureFlag = 1 << 0,
+	EnPassantFlag = 1 << 1,
+	CRightsFlag = 1 << 2,
+	HMClockFlag = 1 << 3
 };
+inline StorageFlags operator~(StorageFlags a) {
+	return static_cast<StorageFlags>(~static_cast<BYTE>(a));
+}
 inline StorageFlags operator&(StorageFlags a, StorageFlags b) {
 	return static_cast<StorageFlags>(static_cast<BYTE>(a) & static_cast<BYTE>(b));
 }
@@ -52,6 +70,18 @@ inline StorageFlags operator|(StorageFlags a, StorageFlags b) {
 }
 inline StorageFlags operator^(StorageFlags a, StorageFlags b) {
 	return static_cast<StorageFlags>(static_cast<BYTE>(a) ^ static_cast<BYTE>(b));
+}
+inline StorageFlags& operator&= (StorageFlags& a, StorageFlags b) {
+	a = a & b;
+	return a;
+}
+inline StorageFlags& operator|= (StorageFlags& a, StorageFlags b) {
+	a = a | b;
+	return a;
+}
+inline StorageFlags& operator^= (StorageFlags& a, StorageFlags b) {
+	a = a ^ b;
+	return a;
 }
 
 enum class MoveGenerationStage : BYTE {
@@ -67,9 +97,9 @@ enum class GeneratedNodeResult {
 	None,
 	Checkmate,
 	Stalemate,
-	Draw50Moves
+	Draw50Moves,
+	DrawInsuffMat
 	// ThreefoldRep
-	// InsuffMat
 };
 
 class Move {
@@ -92,16 +122,23 @@ struct PlyHistory {
 	MoveGenerationStage generationStage = (MoveGenerationStage)0;
 };
 
-template<size_t size>
+template<size_t maxPly>
 class MoveGen {
 private:
+	static constexpr size_t historyStackCapacity = maxPly;
+	static constexpr size_t moveStackCapacity = maxPly * 64;
+	static constexpr size_t pieceStackCapacity = std::min(maxPly, (size_t)32);
+	static constexpr size_t hmClockStackCapacity = std::min(maxPly, (size_t)120);
+	static constexpr size_t enPassantStackCapacity = std::min(maxPly, (size_t)16);
+	static constexpr size_t ñRightsStackCapacity = std::min(maxPly, (size_t)4);
+
 	Position mPos;
-	FastStack<PlyHistory, size> mHistoryStack = {};
-	FastStack<Move, size * 64> mMoveStack = {};
-	FastStack<Piece, std::min(size, (size_t)32)> mCaptureStack = {};
-	FastStack<BYTE, std::min(size, (size_t)120)> mHMClockStack = {};
-	FastStack<EnPassant, std::min(size, (size_t)16)> mEPStack = {};
-	FastStack<CRightsFlags, std::min(size, (size_t)4)> mCRightsStack = {};
+	FastStack<PlyHistory, historyStackCapacity> mHistoryStack = {};
+	FastStack<Move, moveStackCapacity> mMoveStack = {};
+	FastStack<Piece, pieceStackCapacity> mCaptureStack = {};
+	FastStack<BYTE, hmClockStackCapacity> mHMClockStack = {};
+	FastStack<EnPassant, enPassantStackCapacity> mEPStack = {};
+	FastStack<CRightsFlags, ñRightsStackCapacity > mCRightsStack = {};
 
 	void generatePawnMovesToBuffer();
 	void generateRooklikeMovesToBuffer();
@@ -114,24 +151,18 @@ private:
 		switch (stage)
 		{
 		case MoveGenerationStage::PawnStage:
-			generatePawnMovesToBuffer();
-			break;
+			generatePawnMovesToBuffer(); break;
 		case MoveGenerationStage::RookLikeStage:
-			generateRooklikeMovesToBuffer();
-			break;
+			generateRooklikeMovesToBuffer(); break;
 		case MoveGenerationStage::BishopLikeStage:
-			generateBishoplikeMovesToBuffer();
-			break;
+			generateBishoplikeMovesToBuffer(); break;
 		case MoveGenerationStage::KnightStage:
-			generateKnightMovesToBuffer();
-			break;
+			generateKnightMovesToBuffer(); break;
 		case MoveGenerationStage::KingStage:
-			generateKingMovesToBuffer();
-			break;
-		default:
-			throw "invalid stage";
+			generateKingMovesToBuffer(); break;
+		default: throw "invalid stage";  // TODO: contract this.
 		}
-		stage = (MoveGenerationStage)((BYTE)stage + 1);
+		stage = (MoveGenerationStage)(((BYTE)stage) + 1);
 		return true;
 	}
 
@@ -144,12 +175,12 @@ public:
 	inline const Position& getPosition() const { return mPos; }
 	inline void resetRoot(Position root) {
 		mPos = root;
-		mHistoryStack.pop(mHistoryStack.size());
-		mMoveStack.pop(mMoveStack.size());
-		mCaptureStack.pop(mCaptureStack.size());
-		mHMClockStack.pop(mHMClockStack.size());
-		mEPStack.pop(mEPStack.size());
-		mCRightsStack.pop(mCRightsStack.size());
+		mHistoryStack.pop(mHistoryStack.maxPly());
+		mMoveStack.pop(mMoveStack.maxPly());
+		mCaptureStack.pop(mCaptureStack.maxPly());
+		mHMClockStack.pop(mHMClockStack.maxPly());
+		mEPStack.pop(mEPStack.maxPly());
+		mCRightsStack.pop(mCRightsStack.maxPly());
 	}
 	inline void abandonMoves() {
 		PlyHistory generationData = mHistoryStack.top();
@@ -162,13 +193,13 @@ public:
 	std::vector<Position> collectMovesAndFinish();
 };
 
-template<size_t size>
-bool MoveGen<size>::TryMakeValidMoveOrFinish() {
+template<size_t maxPly>
+bool MoveGen<maxPly>::TryMakeValidMoveOrFinish() {
 	PlyHistory generationData = mHistoryStack.top();
 	mHistoryStack.pop();
-	const size_t lowerLengthBound = mMoveStack.size() - generationData.moveCount;
+	const size_t lowerLengthBound = mMoveStack.maxPly() - generationData.moveCount;
 	do {
-		while (mMoveStack.size() > lowerLengthBound) {
+		while (mMoveStack.maxPly() > lowerLengthBound) {
 			Move move = mMoveStack.top();
 			StorageFlags storageFlags = makeMove(move);
 			if (mPos.board.getAttacksToColoredKing((Color)((mPos.turn + 1) & 1))) {
@@ -176,7 +207,7 @@ bool MoveGen<size>::TryMakeValidMoveOrFinish() {
 				mMoveStack.pop();
 				continue;
 			}
-			generationData.moveCount = mMoveStack.size() - lowerLengthBound;
+			generationData.moveCount = mMoveStack.maxPly() - lowerLengthBound;
 			generationData.storageFlags = storageFlags;
 			mHistoryStack.push(generationData);
 			return true;
@@ -185,8 +216,8 @@ bool MoveGen<size>::TryMakeValidMoveOrFinish() {
 	return false;
 }
 
-template<size_t size>
-bool MoveGen<size>::tryApplyNextMoveOrFinish() {
+template<size_t maxPly>
+bool MoveGen<maxPly>::tryApplyNextMoveOrFinish() {
 	PlyHistory generationData = mHistoryStack.top();
 	mHistoryStack.pop();
 #if defined DEBUG
@@ -201,10 +232,16 @@ bool MoveGen<size>::tryApplyNextMoveOrFinish() {
 	return TryMakeValidMoveOrFinish();
 }
 
-template<size_t size>
-GeneratedNodeResult MoveGen<size>::generateMoves() {
+template<size_t maxPly>
+GeneratedNodeResult MoveGen<maxPly>::generateMoves() {
+	if (!(mPos.board.getBB(Board::PieceBB::Queen)) && !(mPos.board.getBB(Board::PieceBB::Rook))) {
+		const U64 minorPieces = mPos.board.getBB(Board::PieceBB::Bishop)
+			| mPos.board.getBB(Board::PieceBB::Knight);
+		if (!(minorPieces & (minorPieces - 1))) return GeneratedNodeResult::DrawInsuffMat;
+	}
+
 	PlyHistory generationData = PlyHistory();
-	const size_t initial_leghth = mMoveStack.size();
+	const size_t initial_leghth = mMoveStack.maxPly();
 	const U64 checkingPieces = mPos.board.getAttacksToColoredKing(mPos.turn);
 	if (checkingPieces & (checkingPieces - 1)) {  // if double check
 		generateKingMovesToBuffer();
@@ -214,7 +251,7 @@ GeneratedNodeResult MoveGen<size>::generateMoves() {
 		if (!tryGenerateNextStageMoves(generationData.generationStage)) throw "something went wrong";
 		// TODO: remove the throw after debuging.
 	}
-	generationData.moveCount = mMoveStack.size() - initial_leghth;
+	generationData.moveCount = mMoveStack.maxPly() - initial_leghth;
 	mHistoryStack.push(generationData);
 
 	if (TryMakeValidMoveOrFinish()) {
@@ -227,8 +264,8 @@ GeneratedNodeResult MoveGen<size>::generateMoves() {
 	return checkingPieces ? GeneratedNodeResult::Checkmate : GeneratedNodeResult::Stalemate;
 }
 
-template<size_t size>
-void MoveGen<size>::generatePawnMovesToBuffer()
+template<size_t maxPly>
+void MoveGen<maxPly>::generatePawnMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -308,8 +345,8 @@ void MoveGen<size>::generatePawnMovesToBuffer()
 	}
 }
 
-template<size_t size>
-void MoveGen<size>::generateRooklikeMovesToBuffer()
+template<size_t maxPly>
+void MoveGen<maxPly>::generateRooklikeMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -332,8 +369,8 @@ void MoveGen<size>::generateRooklikeMovesToBuffer()
 	}
 }
 
-template<size_t size>
-void MoveGen<size>::generateBishoplikeMovesToBuffer()
+template<size_t maxPly>
+void MoveGen<maxPly>::generateBishoplikeMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -356,8 +393,8 @@ void MoveGen<size>::generateBishoplikeMovesToBuffer()
 	}
 }
 
-template<size_t size>
-void MoveGen<size>::generateKingMovesToBuffer()
+template<size_t maxPly>
+void MoveGen<maxPly>::generateKingMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -402,8 +439,8 @@ void MoveGen<size>::generateKingMovesToBuffer()
 	}
 }
 
-template<size_t size>
-void MoveGen<size>::generateKnightMovesToBuffer()
+template<size_t maxPly>
+void MoveGen<maxPly>::generateKnightMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
@@ -425,8 +462,8 @@ void MoveGen<size>::generateKnightMovesToBuffer()
 	}
 }
 
-template<size_t size>
-std::vector<Position> MoveGen<size>::collectMovesAndFinish() {
+template<size_t maxPly>
+std::vector<Position> MoveGen<maxPly>::collectMovesAndFinish() {
 	std::vector<Position> ret = {};
 	do {
 		ret.push_back(mPos);
@@ -434,14 +471,14 @@ std::vector<Position> MoveGen<size>::collectMovesAndFinish() {
 	return ret;
 }
 
-template<size_t size>
-StorageFlags MoveGen<size>::makeMove(const Move move)
+template<size_t maxPly>
+StorageFlags MoveGen<maxPly>::makeMove(const Move move)
 {
-	U64 fromBB = C64(1) << move.getFrom();
-	U64 toBB = C64(1) << move.getTo();
-	MoveFlags flags = move.getFlags();
+	const U64 fromBB = C64(1) << move.getFrom();
+	const U64 toBB = C64(1) << move.getTo();
+	const MoveFlags flags = move.getFlags();
 	StorageFlags storageFlags = StorageFlags::None;
-	Color opponent = (Color)((mPos.turn + 1) & 1);
+	const Color opponent = (Color)((mPos.turn + 1) & 1);
 	Piece piece;
 
 	if (flags == MoveFlags::Quiet || flags == MoveFlags::Capture) {
@@ -482,9 +519,7 @@ StorageFlags MoveGen<size>::makeMove(const Move move)
 		else captured = Piece::Queen;
 
 		mCaptureStack.push(captured);
-		storageFlags = (StorageFlags)(
-			static_cast<BYTE>(storageFlags) | static_cast<BYTE>(StorageFlags::CaptureFlag)
-			);
+		storageFlags |= StorageFlags::CaptureFlag;
 		mPos.board.removeColoredPieces(opponent, captured, atkBB);
 	}
 
@@ -495,25 +530,43 @@ StorageFlags MoveGen<size>::makeMove(const Move move)
 	if ((static_cast<BYTE>(flags & MoveFlags::CaptureFlag))
 		|| (piece == Piece::Pawn)) {
 		mHMClockStack.push(mPos.hmClock);
-		storageFlags = (StorageFlags)(static_cast<BYTE>(storageFlags) | static_cast<BYTE>(StorageFlags::HMClockFlag));
+		storageFlags |= StorageFlags::HMClockFlag;
 		mPos.hmClock = 0;
 	}
 	else ++mPos.hmClock;
 
 	if (mPos.enPassant != EnPassant::None) {
 		mEPStack.push(mPos.enPassant);
-		storageFlags = (StorageFlags)(static_cast<BYTE>(storageFlags) | static_cast<BYTE>(StorageFlags::EnPassantFlag));
+		storageFlags |= StorageFlags::EnPassantFlag;
 	}
 	mPos.enPassant = flags == MoveFlags::DoublePawn ? (EnPassant)(move.getFrom() & 0x7) : EnPassant::None;
 
-	// TODO: rook moves can also break castling rights.
-	CRightsFlags kingMoveBrokenCRights = (CRightsFlags)(
-		(CRightsFlags::WhiteKing | CRightsFlags::WhiteQueen) << (mPos.turn == Color::White ? 0 : 2)
-	);
-	if ((piece == Piece::King) && (mPos.cRights & kingMoveBrokenCRights)) {
+	const CRightsFlags qRookRightsBreak = mPos.turn == Color::White
+		? CRightsFlags::WhiteQueen : CRightsFlags::BlackQueen;
+	const CRightsFlags kRookRightsBreak = mPos.turn == Color::White
+		? CRightsFlags::WhiteKing : CRightsFlags::BlackKing;
+	const CRightsFlags kingRightsBreak = (CRightsFlags)(qRookRightsBreak | kRookRightsBreak);
+	const U64 qRookInitialPos = mPos.turn == Color::White
+		? C64(0x1) : C64(0x100000000000000);
+	const U64 kRookInitialPos = mPos.turn == Color::White
+		? C64(0x80) : C64(0x8000000000000000);
+
+	if ((piece == Piece::King) && (mPos.cRights & kingRightsBreak)) {
 		mCRightsStack.push(mPos.cRights);
 		storageFlags = storageFlags | StorageFlags::CRightsFlag;
-		mPos.cRights = (CRightsFlags)(mPos.cRights & ~kingMoveBrokenCRights);
+		mPos.cRights = (CRightsFlags)(mPos.cRights & ~kingRightsBreak);
+	}
+	else if (piece == Piece::Rook) {
+		if ((fromBB & qRookInitialPos) && (mPos.cRights & qRookRightsBreak)) {
+			mCRightsStack.push(mPos.cRights);
+			storageFlags = storageFlags | StorageFlags::CRightsFlag;
+			mPos.cRights = (CRightsFlags)(mPos.cRights & ~qRookRightsBreak);
+		}
+		else if ((fromBB & kRookInitialPos) && (mPos.cRights & kRookRightsBreak)) {
+			mCRightsStack.push(mPos.cRights);
+			storageFlags = storageFlags | StorageFlags::CRightsFlag;
+			mPos.cRights = (CRightsFlags)(mPos.cRights & ~kRookRightsBreak);
+		}
 	}
 
 	mPos.turn = opponent;
@@ -521,8 +574,8 @@ StorageFlags MoveGen<size>::makeMove(const Move move)
 	return storageFlags;
 }
 
-template<size_t size>
-void MoveGen<size>::unmakeMove(const Move move, const StorageFlags storageFlags)
+template<size_t maxPly>
+void MoveGen<maxPly>::unmakeMove(const Move move, const StorageFlags storageFlags)
 {
 	U64 fromBB = C64(1) << move.getFrom();
 	U64 toBB = C64(1) << move.getTo();

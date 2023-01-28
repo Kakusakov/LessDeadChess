@@ -47,7 +47,7 @@ private:
 	std::array<T, capacity> mStack = {};
 	size_t mSize = 0;
 public:
-	inline const size_t size() const { return mSize; }
+	inline const size_t maxPly() const { return mSize; }
 	inline const T peek(size_t idx) const {
 		if (idx >= mSize) throw FastStackOutOfRange();
 		return mStack[idx];

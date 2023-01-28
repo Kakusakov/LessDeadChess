@@ -3,17 +3,6 @@
 #include <iostream>
 #include <chrono>
 
-/*
-CODE CLEANUP TASKS :
-	MAIN TASKS:
-	1. Finish TODOs.
-	2. Assert-check all code contracts on DEBUG.
-	3. Refactor for readability.
-
-	OPTIONAL TASKS:
-	1. Inline where sensible.
-	2. Change enums to enum classes.
-*/ 
 
 #if defined LOG_TO_FILE 
 #include <cstdio>

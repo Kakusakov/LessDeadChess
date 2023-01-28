@@ -16,13 +16,17 @@ enum Color : BYTE {
 	White,
 	Black
 };
+inline Color operator~(Color a) {
+	return static_cast<Color>((static_cast<BYTE>(a) + 1) & 1);
+}
 
 enum CRightsFlags : BYTE {
-	WhiteKing = 0b1,
-	WhiteQueen = 0b10,
-	BlackKing = 0b100,
-	BlackQueen = 0b1000
+	WhiteKing = 1 << 0,
+	WhiteQueen = 1 << 1,
+	BlackKing = 1 << 2,
+	BlackQueen = 1 << 3
 };
+
 
 
 enum EnPassant {

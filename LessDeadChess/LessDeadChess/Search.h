@@ -1,13 +1,14 @@
 #pragma once
 #include "MoveGen.h"
 
-template<size_t max_depth>
+template<size_t maxDepth>
 class Search {
 private:
-	MoveGen<max_depth + 1> mMoveGen = { Position(classicStartPosFen) };
+	MoveGen<maxDepth + 1> mMoveGen = { Position(classicStartPosFen) };
 	int checkmateWeight = -200;
 	int stalemateWeight = 0;
 	int draw50movesWeight = 0;
+	int drawInsuffMatWeight = 0;
 
 	int NegaMax(int depth, int alpha, int beta);
 	int Evaluate();
@@ -18,11 +19,11 @@ public:
 			throw std::logic_error("The root for the search is a terminal position");
 		}
 		Position bestMove = mMoveGen.getPosition();
-		int bestScore = -NegaMax(max_depth - 1, checkmateWeight, -checkmateWeight);
+		int bestScore = -NegaMax(maxDepth - 1, checkmateWeight, -checkmateWeight);
 		/*std::cout << mMoveGen.getPosition().toDebugAsciiView() 
 			+ " score=" + std::to_string(bestScore) + "\n";*/
 		while (mMoveGen.tryApplyNextMoveOrFinish()) {
-			int score = -NegaMax(max_depth - 1, checkmateWeight, bestScore);
+			int score = -NegaMax(maxDepth - 1, checkmateWeight, bestScore);
 			/*std::cout << mMoveGen.getPosition().toDebugAsciiView()
 				+ " score=" + std::to_string(score) + "\n";*/
 			if (score > bestScore) {
@@ -34,14 +35,15 @@ public:
 	}
 };
 
-template<size_t max_depth>
-int Search<max_depth>::NegaMax(int depth, int alpha, int beta) {
+template<size_t maxDepth>
+int Search<maxDepth>::NegaMax(int depth, int alpha, int beta) {
 	switch (mMoveGen.generateMoves())
 	{
 	case GeneratedNodeResult::None: break;
 	case GeneratedNodeResult::Checkmate: return checkmateWeight;
 	case GeneratedNodeResult::Stalemate: return stalemateWeight;
 	case GeneratedNodeResult::Draw50Moves: return draw50movesWeight;
+	case GeneratedNodeResult::DrawInsuffMat: return drawInsuffMatWeight;
 	default: throw std::logic_error("Found unknow genereated node result");
 	}
 	if (depth <= 0) {
@@ -60,8 +62,8 @@ int Search<max_depth>::NegaMax(int depth, int alpha, int beta) {
 	return alpha;
 }
 
-template<size_t max_depth>
-int Search<max_depth>::Evaluate() {
+template<size_t maxDepth>
+int Search<maxDepth>::Evaluate() {
 	const Position& pos = mMoveGen.getPosition();
 	const Color player = pos.turn;
 	const Color opponent = (Color)((pos.turn + 1) & 1);
