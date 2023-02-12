@@ -11,68 +11,24 @@ std::string Position::toDebugAsciiView() const {
 		+ ", hmClock=" + std::to_string(hmClock)
 		+ "]\n{\n";
 	//std::cout << "whites: ";
-	auto whites = serializeBB(board.getBB(Board::PieceBB::White));
-	/*for (const auto& sq : whites) {
-		std::cout << std::to_string(sq) + " ";
-	}
-	std::cout << "\n" + BBToString(board.getBB(Board::PieceBB::White)) + "\n";
-	std::cout << "blacks: ";
-	auto balcks = serializeBB(board.getBB(Board::PieceBB::Black));
-	for (const auto& sq : balcks) {
-		std::cout << std::to_string(sq) + " ";
-	}
-	std::cout << "\n" + BBToString(board.getBB(Board::PieceBB::Black)) + "\n";
-	std::cout << "pawns: ";*/
-	auto pawns = serializeBB(board.getBB(Board::PieceBB::Pawn));
-	/*for (const auto& sq : pawns) {
-		std::cout << std::to_string(sq) + " ";
-	}
-	std::cout << "\n" + BBToString(board.getBB(Board::PieceBB::Pawn)) + "\n";
-	std::cout << "knights: ";*/
-	auto knights = serializeBB(board.getBB(Board::PieceBB::Knight));
-	/*for (const auto& sq : knights) {
-		std::cout << std::to_string(sq) + " ";
-	}
-	std::cout << "\n" + BBToString(board.getBB(Board::PieceBB::Knight)) + "\n";*/
-	auto bishops = serializeBB(board.getBB(Board::PieceBB::Bishop));
-	auto rooks = serializeBB(board.getBB(Board::PieceBB::Rook));
-	auto queens = serializeBB(board.getBB(Board::PieceBB::Queen));
-	auto kings = serializeBB(board.getBB(Board::PieceBB::King));
 	std::string viev = "";
 	std::string row;
 	for (int y = 7; y >= 0; --y) {
 		row = "";
-		for (int x = 7; x >= 0; --x) {
-			Square sq = (Square)(y * 8 + x);
-			bool found = true;
-			if (std::find(pawns.begin(), pawns.end(), sq) != pawns.end()) {
-				row = "P" + row;
-			}
-			else if (std::find(knights.begin(), knights.end(), sq) != knights.end()) {
-				row = "N" + row;
-			}
-			else if (std::find(bishops.begin(), bishops.end(), sq) != bishops.end()) {
-				row = "B" + row;
-			}
-			else if (std::find(rooks.begin(), rooks.end(), sq) != rooks.end()) {
-				row = "R" + row;
-			}
-			else if (std::find(queens.begin(), queens.end(), sq) != queens.end()) {
-				row = "Q" + row;
-			}
-			else if (std::find(kings.begin(), kings.end(), sq) != kings.end()) {
-				row = "K" + row;
-			}
-			else {
-				found = false;
-				row = "__" + row;
-			}
+		for (int x = 0; x < 8; ++x) {
+			U64 sqBB = C64(1) << (y * 8 + x);
+			if (board.getBB(Board::PieceBB::White) & sqBB) row += "W";
+			else if (board.getBB(Board::PieceBB::Black) & sqBB) row += "B";
 
-			if (found) {
-				if (std::find(whites.begin(), whites.end(), sq) != whites.end()) row = "W" + row;
-				else row = "B" + row;
-			}
-			row = " " + row;
+			if (board.getBB(Board::PieceBB::Pawn) & sqBB) row += "P";
+			else if (board.getBB(Board::PieceBB::Knight) & sqBB) row += "N";
+			else if (board.getBB(Board::PieceBB::Bishop) & sqBB) row += "B";
+			else if (board.getBB(Board::PieceBB::Rook) & sqBB) row += "R";
+			else if (board.getBB(Board::PieceBB::Queen) & sqBB) row += "Q";
+			else if (board.getBB(Board::PieceBB::King) & sqBB) row += "K";
+			else row += "__";
+
+			row += " ";
 		}
 		viev += row + "\n";
 	}
@@ -111,14 +67,14 @@ Position::Position(std::string fen) {
 	U64 sqBB = C64(1);
 	this->board = {};
 	for (int y = 7; y >= 0; --y) {
-		size_t extraX = 0;
-		for (size_t x = 0; x < positionTokens[y].size(); ++x, sqBB <<= 1) {
+		int extraX = 0;
+		for (int x = 0; x < positionTokens[y].size(); ++x, sqBB <<= 1) {
 			char c = positionTokens[y][x];
 			if (c >= '1' && c <= '8') {
 				extraX += c - '1';
 				sqBB <<= c - '1';
 				if (x + extraX > 8) {
-					throw std::logic_error("FEN row skips to many chars=" + std::to_string(x + extraX));
+					throw std::logic_error("FEN row skips too many chars=" + std::to_string(x + extraX));
 				}
 				continue;
 			}
@@ -142,7 +98,7 @@ Position::Position(std::string fen) {
 	// parse ñRights
 	this->cRights = (CRightsFlags)0;
 	if (ñRightsStr != "-") {
-		int rightsSize = ñRightsStr.size();
+		size_t rightsSize = ñRightsStr.size();
 		if (ñRightsStr.find("K") != std::string::npos) {
 			--rightsSize;
 			this->cRights = (CRightsFlags)(this->cRights | CRightsFlags::WhiteKing);

@@ -151,7 +151,7 @@ void initalizeBoardClass();
 class Board
 {
 private:
-	U64 mPieceBB[8] = { 0 };
+	U64 mPieceBB[8] = { C64(0) };
 public:
 	enum PieceBB {
 		White,

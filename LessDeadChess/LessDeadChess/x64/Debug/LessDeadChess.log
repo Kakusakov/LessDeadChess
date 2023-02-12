@@ -1,24 +1,25 @@
-﻿  Main.cpp
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(248,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(236,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<6>::generateMoves(void)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(17,3): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<6>::generateMoves(void)' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(7,1): message : see reference to class template instantiation 'MoveGen<6>' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Main.cpp(109,21): message : see reference to class template instantiation 'Search<5>' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(210,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(197,50): message : while compiling class template member function 'bool MoveGen<6>::TryMakeValidMoveOrFinish(void)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(251,2): message : see reference to function template instantiation 'bool MoveGen<6>::TryMakeValidMoveOrFinish(void)' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(38,64): message : while compiling class template member function 'int Search<5>::NegaMax(int,int,int)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(21,17): message : see reference to function template instantiation 'int Search<5>::NegaMax(int,int,int)' being compiled
-  MoveGen.cpp
+﻿  Board.cpp
+  Main.cpp
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(365,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(347,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<7>::generateMoves(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(18,3): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<7>::generateMoves(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(7,1): message : see reference to class template instantiation 'MoveGen<7>' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Main.cpp(61,21): message : see reference to class template instantiation 'Search<6>' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(321,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(308,50): message : while compiling class template member function 'bool MoveGen<7>::TryMakeValidMoveOrFinish(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(368,2): message : see reference to function template instantiation 'bool MoveGen<7>::TryMakeValidMoveOrFinish(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(39,63): message : while compiling class template member function 'int Search<6>::NegaMax(int,int,int)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(22,17): message : see reference to function template instantiation 'int Search<6>::NegaMax(int,int,int)' being compiled
   Perft.cpp
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(248,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(236,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<1>::generateMoves(void)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(18,2): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<1>::generateMoves(void)' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(3,38): message : see reference to class template instantiation 'MoveGen<1>' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(210,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(197,50): message : while compiling class template member function 'bool MoveGen<1>::TryMakeValidMoveOrFinish(void)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(251,2): message : see reference to function template instantiation 'bool MoveGen<1>::TryMakeValidMoveOrFinish(void)' being compiled
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(236,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<1>::generateMoves(void)'
-E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(18,2): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<1>::generateMoves(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(365,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(347,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<1>::generateMoves(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(19,2): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<1>::generateMoves(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(4,38): message : see reference to class template instantiation 'MoveGen<1>' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(321,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(308,50): message : while compiling class template member function 'bool MoveGen<1>::TryMakeValidMoveOrFinish(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(368,2): message : see reference to function template instantiation 'bool MoveGen<1>::TryMakeValidMoveOrFinish(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(347,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<1>::generateMoves(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Perft.cpp(19,2): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<1>::generateMoves(void)' being compiled
+  Position.cpp
   Generating Code...
   LessDeadChess.vcxproj -> E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\x64\Debug\LessDeadChess.exe

@@ -5,7 +5,6 @@
 #include "FastStack.h"
 #include <algorithm>
 
-
 enum class MoveFlags : BYTE {
 	Speñ0Flag = 1 << 0,
 	Spec1Flag = 1 << 1,
@@ -85,11 +84,16 @@ inline StorageFlags& operator^= (StorageFlags& a, StorageFlags b) {
 }
 
 enum class MoveGenerationStage : BYTE {
-	PawnStage,
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+	Attacks,
+	Quiets,
+#else
+	KingStage,
 	RookLikeStage,
 	BishopLikeStage,
 	KnightStage,
-	KingStage,
+	PawnStage,
+#endif
 	FinalStage
 };
 
@@ -122,15 +126,24 @@ struct PlyHistory {
 	MoveGenerationStage generationStage = (MoveGenerationStage)0;
 };
 
+const int pawnWeight = 1;
+const int bishopWeight = 3;
+const int knightWeight = 3;
+const int rookWeight = 5;
+const int queenWeight = 9;
+
 template<size_t maxPly>
 class MoveGen {
 private:
 	static constexpr size_t historyStackCapacity = maxPly;
-	static constexpr size_t moveStackCapacity = maxPly * 64;
+	static constexpr size_t moveStackCapacity = maxPly * 256;
 	static constexpr size_t pieceStackCapacity = std::min(maxPly, (size_t)32);
 	static constexpr size_t hmClockStackCapacity = std::min(maxPly, (size_t)120);
 	static constexpr size_t enPassantStackCapacity = std::min(maxPly, (size_t)16);
 	static constexpr size_t ñRightsStackCapacity = std::min(maxPly, (size_t)4);
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+	static constexpr size_t sortingStackCapacity = 256;
+#endif
 
 	Position mPos;
 	FastStack<PlyHistory, historyStackCapacity> mHistoryStack = {};
@@ -139,17 +152,87 @@ private:
 	FastStack<BYTE, hmClockStackCapacity> mHMClockStack = {};
 	FastStack<EnPassant, enPassantStackCapacity> mEPStack = {};
 	FastStack<CRightsFlags, ñRightsStackCapacity > mCRightsStack = {};
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+	FastStack<int, sortingStackCapacity> mSortingStack = {};
+#endif
 
-	void generatePawnMovesToBuffer();
+	void generatePawnQuietsToBuffer();
+	void generatePawnAttacksToBuffer();
+	void generateKingQuietsToBuffer();
+	void generateKingAttacksToBuffer();
+	void generateKnightQuietsToBuffer();
+	void generateKnightAttacksToBuffer();
+
+#if defined SPLIT_SLIDER_GENERATION
+	void generateRooklikeQuietsToBuffer();
+	void generateRooklikeAttacksToBuffer();
+	void generateBishoplikeQuietsToBuffer();
+	void generateBishoplikeAttacksToBuffer();
+#endif
+
+	// DEPRECATED
+	inline void generatePawnMovesToBuffer() {
+		generatePawnQuietsToBuffer();
+		generatePawnAttacksToBuffer();
+	}
+	// DEPRECATED
+	inline void generateKingMovesToBuffer() {
+		generateKingQuietsToBuffer();
+		generateKingAttacksToBuffer();
+	}
+	// DEPRECATED
+	inline void generateKnightMovesToBuffer() {
+		generateKnightQuietsToBuffer();
+		generateKnightAttacksToBuffer();
+	}
+
+#if defined SPLIT_SLIDER_GENERATION
+	// DEPRECATED
+	inline void generateRooklikeMovesToBuffer() {
+		generateRooklikeQuietsToBuffer();
+		generateRooklikeAttacksToBuffer();
+	}
+	// DEPRECATED
+	inline void generateBishoplikeMovesToBuffer() {
+		generateBishoplikeQuietsToBuffer();
+		generateBishoplikeAttacksToBuffer();
+	}
+
+	inline void generateQuietsToBuffer() {
+		generatePawnQuietsToBuffer();
+		generateKnightQuietsToBuffer();
+		generateBishoplikeQuietsToBuffer();
+		generateRooklikeQuietsToBuffer();
+		generateKingQuietsToBuffer();
+	}
+
+	inline void generateAttacksToBuffer() {
+		generatePawnAttacksToBuffer();
+		generateKnightAttacksToBuffer();
+		generateBishoplikeAttacksToBuffer();
+		generateRooklikeAttacksToBuffer();
+		generateKingAttacksToBuffer();
+	}
+#else
 	void generateRooklikeMovesToBuffer();
 	void generateBishoplikeMovesToBuffer();
-	void generateKnightMovesToBuffer();
-	void generateKingMovesToBuffer();
+#endif
+	
 
 	inline bool tryGenerateNextStageMoves(MoveGenerationStage& stage) {
 		if (stage == MoveGenerationStage::FinalStage) return false;
+
 		switch (stage)
 		{
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+		case MoveGenerationStage::Quiets:
+			generateQuietsToBuffer(); 
+			break;
+		case MoveGenerationStage::Attacks:
+			generateAttacksToBuffer(); 
+			mSortingStack.pop(mSortingStack.size());
+			break;
+#else
 		case MoveGenerationStage::PawnStage:
 			generatePawnMovesToBuffer(); break;
 		case MoveGenerationStage::RookLikeStage:
@@ -160,11 +243,39 @@ private:
 			generateKnightMovesToBuffer(); break;
 		case MoveGenerationStage::KingStage:
 			generateKingMovesToBuffer(); break;
-		default: throw "invalid stage";  // TODO: contract this.
+#endif
+		default: throw "invalid stage";  // TODO: contract this?
 		}
 		stage = (MoveGenerationStage)(((BYTE)stage) + 1);
 		return true;
 	}
+
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+	inline void pushCaptureSorted(Move move, int fromWeight) {
+		// TODO: separate this into a function
+		const U64 toBB = C64(1) << move.getTo();
+		int exchangeScore = -fromWeight;
+		if (mPos.board.getPiece(Piece::Pawn) & toBB) exchangeScore += pawnWeight;
+		else if (mPos.board.getPiece(Piece::Bishop) & toBB) exchangeScore += bishopWeight;
+		else if (mPos.board.getPiece(Piece::Knight) & toBB) exchangeScore += knightWeight;
+		else if (mPos.board.getPiece(Piece::Rook) & toBB) exchangeScore += rookWeight;
+		else exchangeScore += queenWeight;
+		const size_t sorting_pos = std::upper_bound(
+			mSortingStack.begin(),
+			mSortingStack.end(),
+			exchangeScore
+		) - mSortingStack.begin();
+
+		/* 
+		* TODO: HOW?! WHY?! Why on Earth searching a bad move first improve move ordering???
+		*       Am I blind? Am I stupid? Did I miss something???
+		*/
+		const size_t insert_pos = mMoveStack.size() - sorting_pos;
+
+		mSortingStack.insert(exchangeScore, sorting_pos);
+		mMoveStack.insert(move, insert_pos);
+	}
+#endif
 
 	bool TryMakeValidMoveOrFinish();
 
@@ -175,12 +286,12 @@ public:
 	inline const Position& getPosition() const { return mPos; }
 	inline void resetRoot(Position root) {
 		mPos = root;
-		mHistoryStack.pop(mHistoryStack.maxPly());
-		mMoveStack.pop(mMoveStack.maxPly());
-		mCaptureStack.pop(mCaptureStack.maxPly());
-		mHMClockStack.pop(mHMClockStack.maxPly());
-		mEPStack.pop(mEPStack.maxPly());
-		mCRightsStack.pop(mCRightsStack.maxPly());
+		mHistoryStack.pop(mHistoryStack.size());
+		mMoveStack.pop(mMoveStack.size());
+		mCaptureStack.pop(mCaptureStack.size());
+		mHMClockStack.pop(mHMClockStack.size());
+		mEPStack.pop(mEPStack.size());
+		mCRightsStack.pop(mCRightsStack.size());
 	}
 	inline void abandonMoves() {
 		PlyHistory generationData = mHistoryStack.top();
@@ -197,9 +308,9 @@ template<size_t maxPly>
 bool MoveGen<maxPly>::TryMakeValidMoveOrFinish() {
 	PlyHistory generationData = mHistoryStack.top();
 	mHistoryStack.pop();
-	const size_t lowerLengthBound = mMoveStack.maxPly() - generationData.moveCount;
+	const size_t lowerLengthBound = mMoveStack.size() - generationData.moveCount;
 	do {
-		while (mMoveStack.maxPly() > lowerLengthBound) {
+		while (mMoveStack.size() > lowerLengthBound) {
 			Move move = mMoveStack.top();
 			StorageFlags storageFlags = makeMove(move);
 			if (mPos.board.getAttacksToColoredKing((Color)((mPos.turn + 1) & 1))) {
@@ -207,7 +318,7 @@ bool MoveGen<maxPly>::TryMakeValidMoveOrFinish() {
 				mMoveStack.pop();
 				continue;
 			}
-			generationData.moveCount = mMoveStack.maxPly() - lowerLengthBound;
+			generationData.moveCount = mMoveStack.size() - lowerLengthBound;
 			generationData.storageFlags = storageFlags;
 			mHistoryStack.push(generationData);
 			return true;
@@ -241,7 +352,7 @@ GeneratedNodeResult MoveGen<maxPly>::generateMoves() {
 	}
 
 	PlyHistory generationData = PlyHistory();
-	const size_t initial_leghth = mMoveStack.maxPly();
+	const size_t initial_leghth = mMoveStack.size();
 	const U64 checkingPieces = mPos.board.getAttacksToColoredKing(mPos.turn);
 	if (checkingPieces & (checkingPieces - 1)) {  // if double check
 		generateKingMovesToBuffer();
@@ -251,7 +362,7 @@ GeneratedNodeResult MoveGen<maxPly>::generateMoves() {
 		if (!tryGenerateNextStageMoves(generationData.generationStage)) throw "something went wrong";
 		// TODO: remove the throw after debuging.
 	}
-	generationData.moveCount = mMoveStack.maxPly() - initial_leghth;
+	generationData.moveCount = mMoveStack.size() - initial_leghth;
 	mHistoryStack.push(generationData);
 
 	if (TryMakeValidMoveOrFinish()) {
@@ -265,6 +376,108 @@ GeneratedNodeResult MoveGen<maxPly>::generateMoves() {
 }
 
 template<size_t maxPly>
+void MoveGen<maxPly>::generatePawnQuietsToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 pawnBB = mPos.board.getColoredPieces(mPos.turn, Piece::Pawn);
+	U64 pawnPushes = singlePushTargets(pawnBB, ~occ, mPos.turn);
+	U64 promotionPushes = pawnPushes & (mPos.turn == Color::White ? rank8 : rank1);
+	pawnPushes &= ~promotionPushes;
+	U64 dblPawnPushes = singlePushTargets(
+		pawnPushes & (mPos.turn == Color::White ? rank3 : rank6),
+		~occ,
+		mPos.turn
+	);
+	int pushOffset = mPos.turn == Color::White ? -8 : 8;
+	while (pawnPushes) {
+		Square to = bitScanForward(pawnPushes);
+		mMoveStack.push(Move((Square)(to + pushOffset), to, MoveFlags::Quiet));
+		pawnPushes &= pawnPushes - 1;
+	}
+	while (dblPawnPushes) {
+		Square to = bitScanForward(dblPawnPushes);
+		mMoveStack.push(Move((Square)(to + pushOffset * 2), to, MoveFlags::DoublePawn));
+		dblPawnPushes &= dblPawnPushes - 1;
+	}
+	while (promotionPushes) {
+		Square to = bitScanForward(promotionPushes);
+		Square from = (Square)(to + pushOffset);
+		mMoveStack.push(Move(from, to, MoveFlags::BishopPromo));
+		mMoveStack.push(Move(from, to, MoveFlags::KnightPromo));
+		mMoveStack.push(Move(from, to, MoveFlags::RookPromo));
+		mMoveStack.push(Move(from, to, MoveFlags::QueenPromo));
+		promotionPushes &= promotionPushes - 1;
+	}
+}
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generatePawnAttacksToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 pawnBB = mPos.board.getColoredPieces(mPos.turn, Piece::Pawn);
+	U64 promoters = pawnBB & (mPos.turn == Color::White ? rank7 : rank2);
+	while (promoters) {
+		Square promoterSq = bitScanForward(promoters);
+		U64 promotionAttacks = pawnAttacks[mPos.turn][promoterSq] & opponentBB;
+		while (promotionAttacks) {
+			Square to = bitScanForward(promotionAttacks);
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(Move(promoterSq, to, MoveFlags::BishopPromoCapture), bishopWeight - pawnWeight);
+			pushCaptureSorted(Move(promoterSq, to, MoveFlags::KnightPromoCapture), knightWeight - pawnWeight);
+			pushCaptureSorted(Move(promoterSq, to, MoveFlags::RookPromoCapture), rookWeight - pawnWeight);
+			pushCaptureSorted(Move(promoterSq, to, MoveFlags::QueenPromoCapture), queenWeight - pawnWeight);
+#else
+			mMoveStack.push(Move(promoterSq, to, MoveFlags::BishopPromoCapture));
+			mMoveStack.push(Move(promoterSq, to, MoveFlags::KnightPromoCapture));
+			mMoveStack.push(Move(promoterSq, to, MoveFlags::RookPromoCapture));
+			mMoveStack.push(Move(promoterSq, to, MoveFlags::QueenPromoCapture));
+#endif
+			promotionAttacks &= promotionAttacks - 1;
+		}
+		promoters &= promoters - 1;
+	}
+	U64 nonPromoters = pawnBB & ~promoters;
+	while (nonPromoters) {
+		Square from = bitScanForward(nonPromoters);
+		U64 attacks = pawnAttacks[mPos.turn][from] & opponentBB;
+		while (attacks) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(Move(from, bitScanForward(attacks), MoveFlags::Capture), pawnWeight);
+#else
+			mMoveStack.push(Move(from, bitScanForward(attacks), MoveFlags::Capture));
+#endif
+			attacks &= attacks - 1;
+		}
+		nonPromoters &= nonPromoters - 1;
+	}
+	U64 epAttackers = pawnBB & epPerformers[mPos.turn][mPos.enPassant];
+	while (nonPromoters) {
+		U64 to = epMoveTargets[mPos.turn][mPos.enPassant];
+		if (to & ~occ) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(
+				Move(bitScanForward(epAttackers),
+					bitScanForward(to),
+					MoveFlags::EPCapture
+				),
+				pawnWeight
+			);
+#else
+			mMoveStack.push(
+				Move(bitScanForward(epAttackers),
+					bitScanForward(to),
+					MoveFlags::EPCapture
+				)
+			);
+#endif
+		}
+		nonPromoters &= nonPromoters - 1;
+	}
+}
+
+/*template<size_t maxPly>
 void MoveGen<maxPly>::generatePawnMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
@@ -343,24 +556,19 @@ void MoveGen<maxPly>::generatePawnMovesToBuffer()
 			promotionPushes &= promotionPushes - 1;
 		}
 	}
-}
+}*/
+
+#if defined SPLIT_SLIDER_GENERATION
 
 template<size_t maxPly>
-void MoveGen<maxPly>::generateRooklikeMovesToBuffer()
-{
+void MoveGen<maxPly>::generateRooklikeQuietsToBuffer() {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
 	U64 occ = mPos.board.getOccupance();
 	U64 rookLike = mPos.board.getRookLikeSliders() & mPos.board.getColor(mPos.turn);
 	while (rookLike) {
 		Square from = bitScanForward(rookLike);
-		U64 attacks = rookAttacks(occ, from);
-		U64 attackHits = attacks & opponentBB;
-		while (attackHits) {
-			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
-			attackHits &= attackHits - 1;
-		}
-		U64 attackQuiets = attacks & ~occ;
+		U64 attackQuiets = rookAttacks(occ, from) & ~occ;
 		while (attackQuiets) {
 			mMoveStack.push(Move(from, bitScanForward(attackQuiets), MoveFlags::Quiet));
 			attackQuiets &= attackQuiets - 1;
@@ -370,21 +578,38 @@ void MoveGen<maxPly>::generateRooklikeMovesToBuffer()
 }
 
 template<size_t maxPly>
-void MoveGen<maxPly>::generateBishoplikeMovesToBuffer()
-{
+void MoveGen<maxPly>::generateRooklikeAttacksToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 rookLike = mPos.board.getRookLikeSliders() & mPos.board.getColor(mPos.turn);
+	while (rookLike) {
+		Square from = bitScanForward(rookLike);
+		U64 attackHits = rookAttacks(occ, from) & opponentBB;
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+		const int weight = (mPos.board.getPiece(Piece::Rook) & (C64(1) << from)) ? rookWeight : queenWeight;
+#endif
+		while (attackHits) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(Move(from, bitScanForward(attackHits), MoveFlags::Capture), weight);
+#else
+			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
+#endif
+			attackHits &= attackHits - 1;
+		}
+		rookLike &= rookLike - 1;
+	}
+}
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateBishoplikeQuietsToBuffer() {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
 	U64 opponentBB = mPos.board.getColor(opponent);
 	U64 occ = mPos.board.getOccupance();
 	U64 bishopLike = mPos.board.getBishopLikeSliders() & mPos.board.getColor(mPos.turn);
 	while (bishopLike) {
 		Square from = bitScanForward(bishopLike);
-		U64 attacks = bishopAttacks(occ, from);
-		U64 attackHits = attacks & opponentBB;
-		while (attackHits) {
-			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
-			attackHits &= attackHits - 1;
-		}
-		U64 attackQuiets = attacks & ~occ;
+		U64 attackQuiets = bishopAttacks(occ, from) & ~occ;
 		while (attackQuiets) {
 			mMoveStack.push(Move(from, bitScanForward(attackQuiets), MoveFlags::Quiet));
 			attackQuiets &= attackQuiets - 1;
@@ -394,6 +619,136 @@ void MoveGen<maxPly>::generateBishoplikeMovesToBuffer()
 }
 
 template<size_t maxPly>
+void MoveGen<maxPly>::generateBishoplikeAttacksToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 bishopLike = mPos.board.getBishopLikeSliders() & mPos.board.getColor(mPos.turn);
+	while (bishopLike) {
+		Square from = bitScanForward(bishopLike);
+		U64 attackHits = bishopAttacks(occ, from) & opponentBB;
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+		const int weight = (mPos.board.getPiece(Piece::Bishop) & (C64(1) << from)) ? bishopWeight : queenWeight;
+#endif
+		while (attackHits) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(Move(from, bitScanForward(attackHits), MoveFlags::Capture), weight);
+#else
+			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
+#endif
+			attackHits &= attackHits - 1;
+		}
+		bishopLike &= bishopLike - 1;
+	}
+}
+
+#else
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateRooklikeMovesToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 rookLike = mPos.board.getRookLikeSliders() & mPos.board.getColor(mPos.turn);
+	while (rookLike) {
+		Square from = bitScanForward(rookLike);
+		U64 attacks = rookAttacks(occ, from);
+		U64 attackQuiets = attacks & ~occ;
+		while (attackQuiets) {
+			mMoveStack.push(Move(from, bitScanForward(attackQuiets), MoveFlags::Quiet));
+			attackQuiets &= attackQuiets - 1;
+		}
+		U64 attackHits = attacks & opponentBB;
+		while (attackHits) {
+			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
+			attackHits &= attackHits - 1;
+		}
+		rookLike &= rookLike - 1;
+	}
+}
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateBishoplikeMovesToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 bishopLike = mPos.board.getBishopLikeSliders() & mPos.board.getColor(mPos.turn);
+	while (bishopLike) {
+		Square from = bitScanForward(bishopLike);
+		U64 attacks = bishopAttacks(occ, from);
+		U64 attackQuiets = attacks & ~occ;
+		while (attackQuiets) {
+			mMoveStack.push(Move(from, bitScanForward(attackQuiets), MoveFlags::Quiet));
+			attackQuiets &= attackQuiets - 1;
+		}
+		U64 attackHits = attacks & opponentBB;
+		while (attackHits) {
+			mMoveStack.push(Move(from, bitScanForward(attackHits), MoveFlags::Capture));
+			attackHits &= attackHits - 1;
+		}
+		bishopLike &= bishopLike - 1;
+	}
+}
+
+#endif
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateKingQuietsToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	Square kingSq = bitScanForward(mPos.board.getColoredKing(mPos.turn));
+	U64 quiets = kingAttacks[kingSq] & ~occ;
+	while (quiets) {
+		mMoveStack.push(Move(kingSq, bitScanForward(quiets), MoveFlags::Quiet));
+		quiets &= quiets - 1;
+	}
+
+	if (mPos.board.getAttacksToColoredKing(mPos.turn) == 0) {
+		if (mPos.turn == Color::White) {
+			if (mPos.cRights & CRightsFlags::WhiteKing
+				&& !mPos.board.isWhiteKingsideCastleObstructed()
+				) {
+				mMoveStack.push(Move((Square)4, (Square)6, MoveFlags::KCastle));
+			}
+			if (mPos.cRights & CRightsFlags::WhiteQueen
+				&& !mPos.board.isWhiteQueensideCastleObstructed()
+				) {
+				mMoveStack.push(Move((Square)4, (Square)2, MoveFlags::QCastle));
+			}
+		}
+		else {
+			if (mPos.cRights & CRightsFlags::BlackKing
+				&& !mPos.board.isBlackKingsideCastleObstructed()
+				) {
+				mMoveStack.push(Move((Square)60, (Square)62, MoveFlags::KCastle));
+			}
+			if (mPos.cRights & CRightsFlags::BlackQueen
+				&& !mPos.board.isBlackQueensideCastleObstructed()
+				) {
+				mMoveStack.push(Move((Square)60, (Square)58, MoveFlags::QCastle));
+			}
+		}
+	}
+}
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateKingAttacksToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	Square kingSq = bitScanForward(mPos.board.getColoredKing(mPos.turn));
+	U64 attacks = kingAttacks[kingSq] & opponentBB;
+	while (attacks) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+		pushCaptureSorted(Move(kingSq, bitScanForward(attacks), MoveFlags::Capture), queenWeight * 2);
+#else
+		mMoveStack.push(Move(kingSq, bitScanForward(attacks), MoveFlags::Capture));
+#endif
+		attacks &= attacks - 1;
+	}
+}
+
+/*template<size_t maxPly>
 void MoveGen<maxPly>::generateKingMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
@@ -437,9 +792,47 @@ void MoveGen<maxPly>::generateKingMovesToBuffer()
 			}
 		}
 	}
+}*/
+
+template<size_t maxPly>
+void MoveGen<maxPly>::generateKnightQuietsToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 knightBB = mPos.board.getColoredPieces(mPos.turn, Piece::Knight);
+	while (knightBB) {
+		Square knightSq = bitScanForward(knightBB);
+		U64 quiets = knightAttacks[knightSq] & ~occ;
+		while (quiets) {
+			mMoveStack.push(Move(knightSq, bitScanForward(quiets), MoveFlags::Quiet));
+			quiets &= quiets - 1;
+		}
+		knightBB &= knightBB - 1;
+	}
 }
 
 template<size_t maxPly>
+void MoveGen<maxPly>::generateKnightAttacksToBuffer() {
+	Color opponent = (Color)((mPos.turn + 1) & 1);
+	U64 opponentBB = mPos.board.getColor(opponent);
+	U64 occ = mPos.board.getOccupance();
+	U64 knightBB = mPos.board.getColoredPieces(mPos.turn, Piece::Knight);
+	while (knightBB) {
+		Square knightSq = bitScanForward(knightBB);
+		U64 attacks = knightAttacks[knightSq] & opponentBB;
+		while (attacks) {
+#if defined MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+			pushCaptureSorted(Move(knightSq, bitScanForward(attacks), MoveFlags::Capture), knightWeight);
+#else
+			mMoveStack.push(Move(knightSq, bitScanForward(attacks), MoveFlags::Capture));
+#endif
+			attacks &= attacks - 1;
+		}
+		knightBB &= knightBB - 1;
+	}
+}
+
+/*template<size_t maxPly>
 void MoveGen<maxPly>::generateKnightMovesToBuffer()
 {
 	Color opponent = (Color)((mPos.turn + 1) & 1);
@@ -460,7 +853,7 @@ void MoveGen<maxPly>::generateKnightMovesToBuffer()
 		}
 		knightBB &= knightBB - 1;
 	}
-}
+}*/
 
 template<size_t maxPly>
 std::vector<Position> MoveGen<maxPly>::collectMovesAndFinish() {

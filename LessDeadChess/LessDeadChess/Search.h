@@ -5,10 +5,10 @@ template<size_t maxDepth>
 class Search {
 private:
 	MoveGen<maxDepth + 1> mMoveGen = { Position(classicStartPosFen) };
-	int checkmateWeight = -200;
-	int stalemateWeight = 0;
-	int draw50movesWeight = 0;
-	int drawInsuffMatWeight = 0;
+	const int checkmateWeight = -200;
+	const int stalemateWeight = 0;
+	const int draw50movesWeight = 0;
+	const int drawInsuffMatWeight = 0;
 
 	int NegaMax(int depth, int alpha, int beta);
 	int Evaluate();
@@ -68,14 +68,14 @@ int Search<maxDepth>::Evaluate() {
 	const Color player = pos.turn;
 	const Color opponent = (Color)((pos.turn + 1) & 1);
 	return (popCount(pos.board.getColoredPieces(player, Piece::Pawn)) 
-			- popCount(pos.board.getColoredPieces(opponent, Piece::Pawn))) * 1
+			- popCount(pos.board.getColoredPieces(opponent, Piece::Pawn))) * pawnWeight
 		+ (popCount(pos.board.getColoredPieces(player, Piece::Bishop))
-			- popCount(pos.board.getColoredPieces(opponent, Piece::Bishop))) * 3
+			- popCount(pos.board.getColoredPieces(opponent, Piece::Bishop))) * bishopWeight
 		+ (popCount(pos.board.getColoredPieces(player, Piece::Knight))
-			- popCount(pos.board.getColoredPieces(opponent, Piece::Knight))) * 3
+			- popCount(pos.board.getColoredPieces(opponent, Piece::Knight))) * knightWeight
 		+ (popCount(pos.board.getColoredPieces(player, Piece::Rook))
-			- popCount(pos.board.getColoredPieces(opponent, Piece::Rook))) * 5
+			- popCount(pos.board.getColoredPieces(opponent, Piece::Rook))) * rookWeight
 		+ (popCount(pos.board.getColoredPieces(player, Piece::Queen))
-			- popCount(pos.board.getColoredPieces(opponent, Piece::Queen))) * 9;
+			- popCount(pos.board.getColoredPieces(opponent, Piece::Queen))) * queenWeight;
 }
 

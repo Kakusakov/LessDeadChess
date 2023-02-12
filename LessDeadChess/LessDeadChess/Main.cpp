@@ -1,53 +1,14 @@
+//#define SPLIT_SLIDER_GENERATION
+#define MOVE_ORDERING_MODE_ATTACKS_AND_QUIETS
+
+#include "Engine.h"
 #include "Search.h"
 #include "Perft.h"
 #include <iostream>
 #include <chrono>
 
 
-#if defined LOG_TO_FILE 
-#include <cstdio>
-#include <fstream>
-#include <ctime>
-
-FILE* logger;
-
-void setupFileLogging() {
-	std::time_t t = std::time(0);
-	std::tm now;
-	localtime_s(&now, &t);
-	std::string fileName = "EngineLog "
-		+ std::to_string(now.tm_year + 1900) + '-'
-		+ std::to_string(now.tm_mon + 1) + '-'
-		+ std::to_string(now.tm_mday) + ' '
-		+ std::to_string(now.tm_hour + 1) + '-'
-		+ std::to_string(now.tm_min + 1) + '-'
-		+ std::to_string(now.tm_sec + 1) + ".txt";
-	std::ofstream file(fileName.c_str());
-	if (file.good()) {
-		file.close();
-		freopen_s(&logger, fileName.c_str(), "w", stdout);
-	}
-	else {
-		std::cerr << file.rdstate();
-		throw std::logic_error("creating a logger failed");
-	}
-}
-#endif
-
-void initalizeEngine() {
-#if defined DEBUG
-	std::cout << "ENGINE >> started initializing engine" << std::endl;
-#endif
-	initalizeBoardClass();
-#if defined DEBUG
-	std::cout << "ENGINE >> finished initializing engine" << std::endl;
-#endif
-}
-
 int main() {
-#if defined LOG_TO_FILE 
-	setupFileLogging();
-#endif
 	initalizeEngine();
 	/*std::cout << "size of Board = " << sizeof(Board) << std::endl;
 	std::cout << "size of Position = " << sizeof(Position) << std::endl;
@@ -91,10 +52,13 @@ int main() {
 	} while (moveGen.tryApplyNextMoveAndFinishOtherwise());
 	std::cout << "got " + std::to_string(count) + " total moves.\n";*/
 
-	Position startPos = Position("r1bq1bkr/ppp3pp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R w KQ - 2 8");
+	const std::string exchange = "1r1k1b1r/pp1qppp1/5nbp/3p1B2/3P1N2/2P2P2/PPQ3PP/RN2K2R b KQ - 1 13";
+	const std::string mateIn3 = "r1bq1bkr/ppp3pp/2n5/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R w KQ - 2 8";
+	Position startPos = Position(exchange);
+	
 	std::cout << startPos.toDebugAsciiView() + "\n\n";
 	auto begin = std::chrono::high_resolution_clock::now();
-	Search<5> search = {};
+	Search<6> search = {};
 	std::cout << "best move=" + search.FindBestMove(startPos).toDebugAsciiView();
 	auto end = std::chrono::high_resolution_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

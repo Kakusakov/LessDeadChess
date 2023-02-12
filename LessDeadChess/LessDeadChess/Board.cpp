@@ -1,7 +1,4 @@
 #include "Board.h"
-#if defined DEBUG
-#include <iostream>
-#endif
 
 U64 fillUpAttacks[8][64];  // 4 KByte
 U64 aFileAttacks[8][64];  // 4 KByte

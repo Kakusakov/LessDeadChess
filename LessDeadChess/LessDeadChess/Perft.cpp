@@ -1,4 +1,5 @@
 #include "Perft.h"
+#include <iostream>
 
 MoveGen<1> MoveNode::mNodeExpander = { Position(classicStartPosFen) };
 
@@ -28,6 +29,9 @@ void MoveNode::expand() {
 	case GeneratedNodeResult::Draw50Moves:
 		mNodeStatus = NodeStatus::Draw50Moves;
 		return;
+	case GeneratedNodeResult::DrawInsuffMat:
+		mNodeStatus = NodeStatus::DrawInsuffMat;
+		return;
 	default:
 		throw std::logic_error("found unknown value of generated move result");
 	}
@@ -53,6 +57,7 @@ void handControllPerft(const Position& rootPos) {
 		case NodeStatus::Checkmate: output += "Checkmate\n\n"; break;
 		case NodeStatus::Stalemate: output += "Stalemate\n\n"; break;
 		case NodeStatus::Draw50Moves: output += "Draw50Moves\n\n"; break;
+		case NodeStatus::DrawInsuffMat: output += "DrawInsuffMat\n\n"; break;
 		}
 		output += "nodePosition=" + pNode->getPosition().toDebugAsciiView() + "\n";
 		output += "childCount=" + std::to_string(pNode->getChildren().size()) + "\n";

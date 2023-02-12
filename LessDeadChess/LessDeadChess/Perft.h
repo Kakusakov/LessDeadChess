@@ -7,6 +7,7 @@ enum class NodeStatus {
 	Checkmate,
 	Stalemate,
 	Draw50Moves,
+	DrawInsuffMat
 };
 
 class MoveNode

@@ -129,6 +129,7 @@
   <ItemGroup>
     <ClInclude Include="Board.h" />
     <ClInclude Include="Defines.h" />
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="FastStack.h" />
     <ClInclude Include="MoveGen.h" />
     <ClInclude Include="Perft.h" />
@@ -137,9 +138,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Board.cpp" />
-    <ClCompile Include="FastStack.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="MoveGen.cpp" />
     <ClCompile Include="Perft.cpp" />
     <ClCompile Include="Position.cpp" />
   </ItemGroup>

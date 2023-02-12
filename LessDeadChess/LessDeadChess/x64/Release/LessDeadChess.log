@@ -1,0 +1,16 @@
+﻿  Main.cpp
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(365,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(347,54): message : while compiling class template member function 'GeneratedNodeResult MoveGen<7>::generateMoves(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(18,3): message : see reference to function template instantiation 'GeneratedNodeResult MoveGen<7>::generateMoves(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(7,1): message : see reference to class template instantiation 'MoveGen<7>' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Main.cpp(61,21): message : see reference to class template instantiation 'Search<6>' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(321,1): warning C4267: '=': conversion from 'size_t' to 'BYTE', possible loss of data
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(308,50): message : while compiling class template member function 'bool MoveGen<7>::TryMakeValidMoveOrFinish(void)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\MoveGen.h(368,2): message : see reference to function template instantiation 'bool MoveGen<7>::TryMakeValidMoveOrFinish(void)' being compiled
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(39,63): message : while compiling class template member function 'int Search<6>::NegaMax(int,int,int)'
+E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\LessDeadChess\Search.h(22,17): message : see reference to function template instantiation 'int Search<6>::NegaMax(int,int,int)' being compiled
+  Generating code
+  Previous IPDB and IOBJ mismatch, fall back to full compilation.
+  All 454 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  LessDeadChess.vcxproj -> E:\All EXTRAS HERE\REPOS\VS REPOS\LessDeadChess\LessDeadChess\x64\Release\LessDeadChess.exe
